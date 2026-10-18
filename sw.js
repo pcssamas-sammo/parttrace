@@ -1,5 +1,5 @@
 // PartTrace service worker: cache-first so the app opens with no signal
-const CACHE = "parttrace-v2";
+const CACHE = "parttrace-v3";
 const SHELL = ["./", "./index.html", "./manifest.json", "./icon-192.png", "./icon-512.png",
   "https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js",
   "https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js",
