@@ -1,0 +1,769 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+<title>PartTrace</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="theme-color" content="#FFFFFF">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=IBM+Plex+Sans+Thai:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500&display=swap">
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<style>
+/* Layout: phone-first single column app shell, sticky header, bottom tab bar with raised scan button */
+:root{
+  --bg:#F3F4F6; --surface:#FFFFFF; --surface2:#F3F4F8; --line:#E5E7EB; --field:#F9FAFB;
+  --fg:#111827; --muted:#6B7280; --ph:#9CA3AF;
+  --brand:#3F5BE0; --brand-ink:#FFFFFF; --brand-soft:#EDF0FD; --navy:#0B1A3A; --navy-ink:#FFFFFF;
+  --ok:#1E7D4F; --ok-soft:#DFF2E8; --warn:#A35E00; --warn-soft:#FBEBD3; --bad:#B42318; --bad-soft:#FBE1DE; --info:#2C5C9E; --info-soft:#E1EAF7;
+  --f-body:"Inter","IBM Plex Sans Thai",system-ui,-apple-system,"Segoe UI",Tahoma,sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+  --r:10px;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0F1320; --surface:#171C2B; --surface2:#1F2536; --line:#2C3346; --field:#1C2232;
+  --fg:#EEF1F7; --muted:#9AA3B6; --ph:#6F788C; --brand:#7D93FF; --brand-ink:#0B1230; --brand-soft:#212B4D; --navy:#E3E8F4; --navy-ink:#0B1A3A;
+  --ok:#5CC793; --ok-soft:#173326; --warn:#F0AE52; --warn-soft:#3A2A12; --bad:#FF8A7E; --bad-soft:#3D1D1A; --info:#8DB4EC; --info-soft:#1B2A3F; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0F1320; --surface:#171C2B; --surface2:#1F2536; --line:#2C3346; --field:#1C2232;
+  --fg:#EEF1F7; --muted:#9AA3B6; --ph:#6F788C; --brand:#7D93FF; --brand-ink:#0B1230; --brand-soft:#212B4D; --navy:#E3E8F4; --navy-ink:#0B1A3A;
+  --ok:#5CC793; --ok-soft:#173326; --warn:#F0AE52; --warn-soft:#3A2A12; --bad:#FF8A7E; --bad-soft:#3D1D1A; --info:#8DB4EC; --info-soft:#1B2A3F; color-scheme:dark}
+*{box-sizing:border-box}
+html,body{min-height:100%}
+body{background:var(--bg);color:var(--fg);font:15px/1.5 var(--f-body);-webkit-tap-highlight-color:transparent}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:30;background:var(--brand)}
+button,input,select,textarea{font:inherit;color:inherit}
+.mono{font-family:var(--f-mono);font-size:.86em;letter-spacing:.01em}
+.app{max-width:620px;margin:0 auto;padding-bottom:calc(92px + env(safe-area-inset-bottom,0px))}
+header.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:var(--brand);color:#fff;
+  padding-block:10px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
+  display:flex;align-items:center;gap:10px}
+header.top h1{font-size:17px;margin:0;font-weight:700;letter-spacing:.01em;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+header.top .back{background:none;border:0;color:#fff;font-size:22px;line-height:1;padding:4px 8px 4px 0;cursor:pointer}
+.pill{font-size:12px;padding:3px 9px;border-radius:99px;background:rgba(255,255,255,.18);color:#fff;white-space:nowrap}
+.lang{display:flex;border:1px solid rgba(255,255,255,.45);border-radius:99px;overflow:hidden}
+.lang button{background:none;border:0;color:#fff;font-size:12px;padding:3px 9px;cursor:pointer}
+.lang button[aria-pressed="true"]{background:#fff;color:#8E3A86;font-weight:600}
+main{padding-block:16px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:18px}
+h2{font-size:13px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:0 0 8px;font-weight:600}
+.banner{background:var(--info-soft);color:var(--info);border-radius:var(--r);padding:10px 12px;font-size:13px}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.stat{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:10px;text-align:left}
+.stat b{display:block;font-size:24px;line-height:1.1;font-variant-numeric:tabular-nums}
+.stat span{font-size:12px;color:var(--muted)}
+.stat.alert b{color:var(--bad)}
+.bigact{display:flex;align-items:center;gap:14px;width:100%;text-align:left;border:0;border-radius:16px;padding:16px;cursor:pointer;background:var(--surface);border:1px solid var(--line)}
+.bigact.primary{background:var(--brand);color:var(--brand-ink);border-color:var(--brand)}
+.bigact .ic{width:44px;height:44px;border-radius:12px;display:grid;place-items:center;background:var(--brand-soft);color:var(--brand);flex:none}
+.bigact.primary .ic{background:rgba(255,255,255,.2);color:var(--brand-ink)}
+.bigact strong{display:block;font-size:17px}
+.bigact small{opacity:.8;font-size:13px}
+.acts{display:flex;flex-direction:column;gap:10px}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.list{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+.item{display:flex;gap:12px;align-items:center;padding:11px 12px;border-top:1px solid var(--line);cursor:pointer;background:none;width:100%;text-align:left;border-left:0;border-right:0;border-bottom:0}
+.item:first-child{border-top:0}
+.item:hover{background:var(--surface2)}
+.item .body{flex:1;min-width:0}
+.item .t,.item .s{display:block}
+.item .t{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.item .s{font-size:13px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.item.child{padding-left:36px;background:var(--surface)}
+.item.child::before{content:"";width:10px;height:18px;border-left:2px solid var(--line);border-bottom:2px solid var(--line);margin-left:-20px;margin-top:-14px;flex:none;border-bottom-left-radius:4px}
+.thumb{width:42px;height:42px;border-radius:10px;flex:none;object-fit:cover;background:var(--surface2);display:grid;place-items:center;font-weight:700;color:var(--brand);font-size:14px}
+.chip{display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:600;padding:2px 8px;border-radius:99px;white-space:nowrap}
+.st-in_store{background:var(--ok-soft);color:var(--ok)}
+.st-installed{background:var(--info-soft);color:var(--info)}
+.st-removed{background:var(--warn-soft);color:var(--warn)}
+.st-repair_in,.st-repair_out{background:var(--warn-soft);color:var(--warn)}
+.st-scrapped{background:var(--surface2);color:var(--muted)}
+.alert-ic{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;flex:none;font-weight:700;font-size:14px}
+.sev-bad{background:var(--bad-soft);color:var(--bad)} .sev-warn{background:var(--warn-soft);color:var(--warn)}
+.empty{padding:18px;color:var(--muted);text-align:center;font-size:14px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;border-radius:10px;padding:11px 16px;border:1px solid var(--line);background:var(--surface);cursor:pointer;font-weight:600;min-height:46px}
+.btn.primary{background:var(--brand);border-color:var(--brand);color:var(--brand-ink)}
+.btn.ghost{background:none;border-color:transparent;color:var(--brand)}
+.btn.danger{color:var(--bad);border-color:var(--bad)}
+.btn.block{width:100%}
+.btn:disabled{opacity:.45;cursor:default}
+.btn:focus-visible,.item:focus-visible,.bigact:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:3px solid var(--brand);outline-offset:2px}
+.btns{display:flex;gap:10px;flex-wrap:wrap}
+.btns>.btn{flex:1}
+label.f{display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--muted);font-weight:500}
+input[type=text],input[type=number],input[type=search],select,textarea{width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:10px;background:var(--surface);color:var(--fg);font-size:16px}
+textarea{min-height:70px;resize:vertical}
+.form{display:flex;flex-direction:column;gap:12px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.check{display:flex;gap:10px;align-items:flex-start;padding:12px;border:1px solid var(--line);border-radius:10px;background:var(--surface);cursor:pointer}
+.check input{width:22px;height:22px;accent-color:var(--brand);flex:none;margin-top:1px}
+.check b{display:block} .check small{color:var(--muted)}
+.steps{display:flex;gap:4px}
+.steps i{flex:1;height:5px;border-radius:3px;background:var(--line)}
+.steps i.on{background:var(--brand)}
+.stepname{font-size:13px;color:var(--muted);margin-top:6px}
+.scanbtn{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:26px;border:2px dashed var(--brand);border-radius:16px;background:var(--brand-soft);color:var(--brand);font-weight:700;font-size:17px;cursor:pointer;width:100%}
+.idbig{font-family:var(--f-mono);font-size:22px;font-weight:500;letter-spacing:.02em}
+.result{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border-radius:10px;font-size:14px}
+.result.ok{background:var(--ok-soft);color:var(--ok)} .result.warn{background:var(--warn-soft);color:var(--warn)} .result.bad{background:var(--bad-soft);color:var(--bad)} .result.info{background:var(--info-soft);color:var(--info)}
+.results{display:flex;flex-direction:column;gap:6px}
+.gps{display:flex;align-items:center;gap:8px;font-size:14px}
+.dot{width:10px;height:10px;border-radius:50%;background:var(--muted);flex:none}
+.dot.ok{background:var(--ok)} .dot.wait{background:var(--warn);animation:pulse 1s infinite} .dot.bad{background:var(--bad)}
+@keyframes pulse{50%{opacity:.3}}
+@media (prefers-reduced-motion:reduce){.dot.wait{animation:none}}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;font-size:14px}
+.kv dt{color:var(--muted)} .kv dd{margin:0;min-width:0;overflow-wrap:anywhere}
+.hero{display:flex;gap:14px;align-items:center}
+.hero .thumb{width:72px;height:72px;font-size:22px;border-radius:14px}
+.timeline{display:flex;flex-direction:column}
+.tl{display:flex;gap:10px;padding:8px 0;border-top:1px solid var(--line);font-size:14px}
+.tl:first-child{border-top:0}
+.tl time{color:var(--muted);font-size:12px;min-width:76px;font-variant-numeric:tabular-nums}
+.tl .flag{color:var(--warn);font-size:12px}
+nav.tabs{position:fixed;left:0;right:0;bottom:0;z-index:20;background:var(--surface);border-top:1px solid var(--line);
+  padding-bottom:env(safe-area-inset-bottom,0px);padding-left:env(safe-area-inset-left,0px);padding-right:env(safe-area-inset-right,0px)}
+nav.tabs .in{max-width:620px;margin:0 auto;display:grid;grid-template-columns:repeat(5,1fr);align-items:end}
+nav.tabs button{background:none;border:0;padding:8px 2px 10px;display:flex;flex-direction:column;align-items:center;gap:2px;font-size:11px;color:var(--muted);cursor:pointer}
+nav.tabs button[aria-current="page"]{color:var(--brand);font-weight:600}
+nav.tabs button.scan .ic{width:56px;height:56px;border-radius:50%;background:var(--brand);color:var(--brand-ink);display:grid;place-items:center;margin-top:-22px;box-shadow:0 4px 14px rgba(142,58,134,.35)}
+.toast{position:fixed;left:50%;bottom:calc(96px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--fg);color:var(--bg);padding:10px 16px;border-radius:10px;font-size:14px;z-index:60;max-width:90vw}
+.modal{position:fixed;inset:0;z-index:50;background:rgba(10,5,12,.72);display:flex;align-items:flex-end;justify-content:center}
+.sheet{background:var(--surface);width:100%;max-width:620px;border-radius:18px 18px 0 0;padding:16px max(16px,env(safe-area-inset-right,0px)) calc(16px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));display:flex;flex-direction:column;gap:12px;max-height:92vh;overflow:auto}
+.sheet h3{margin:0;font-size:17px}
+.viewfinder{position:relative;width:100%;aspect-ratio:4/3;max-width:100%;background:#000;border-radius:12px;overflow:hidden}
+.viewfinder video{width:100%;height:100%;object-fit:cover}
+.viewfinder::after{content:"";position:absolute;inset:18% 22%;border:3px solid #fff;border-radius:14px;box-shadow:0 0 0 999px rgba(0,0,0,.35)}
+.viewfinder .msg{position:absolute;inset:0;display:grid;place-items:center;color:#fff;text-align:center;padding:20px;font-size:14px;z-index:2}
+.inline{display:flex;gap:8px} .inline input{flex:1;min-width:0}
+.labels{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px}
+.label{background:#fff;color:#111;border:1px dashed #bbb;border-radius:8px;padding:8px;text-align:center;break-inside:avoid}
+.label svg{width:100%;height:auto;display:block}
+.label .mono{font-size:12px;display:block;margin-top:2px}
+.label small{font-size:10px;color:#555;display:block;line-height:1.2}
+.qrbox{background:#fff;border-radius:12px;padding:12px;width:180px;max-width:100%;margin:0 auto}
+.qrbox svg{width:100%;height:auto;display:block}
+.chips{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px}
+.chips button{border:1px solid var(--line);background:var(--surface);border-radius:99px;padding:6px 12px;font-size:13px;white-space:nowrap;cursor:pointer}
+.chips button[aria-pressed="true"]{background:var(--brand);border-color:var(--brand);color:var(--brand-ink)}
+.photo-in{display:flex;gap:12px;align-items:center}
+.photo-in img{width:72px;height:72px;border-radius:12px;object-fit:cover}
+.muted{color:var(--muted)} .small{font-size:13px}
+.warnmark{color:var(--bad);font-weight:700}
+
+/* restyle: white header, filled form fields, blue primary + navy secondary buttons */
+header.top{background:var(--surface);color:var(--fg);border-bottom:1px solid var(--line)}
+header.top .back{color:var(--fg)}
+body::before{background:var(--surface)}
+.pill{background:var(--brand-soft);color:var(--brand)}
+.lang{border-color:var(--line)}
+.lang button{color:var(--muted)}
+.lang button[aria-pressed="true"]{background:var(--navy);color:var(--navy-ink)}
+.btn{background:var(--navy);border-color:var(--navy);color:var(--navy-ink);border-radius:6px}
+.btn.primary{background:var(--brand);border-color:var(--brand);color:var(--brand-ink)}
+.btn.ghost{background:none;border-color:transparent;color:var(--brand)}
+.btn.danger{background:none;color:var(--bad);border-color:var(--bad)}
+.btn.outline{background:var(--surface);color:var(--fg);border-color:var(--line)}
+label.f{color:var(--fg);font-size:15px;font-weight:500;gap:8px}
+input[type=text],input[type=number],input[type=search],select,textarea{background:var(--field);border-color:var(--line);border-radius:6px}
+::placeholder{color:var(--ph)}
+.check{background:var(--field);border-radius:6px}
+.scanbtn{border-radius:10px;border-width:1.5px}
+.bigact{border-radius:10px}
+.bigact.primary{background:var(--brand);border-color:var(--brand)}
+nav.tabs button.scan .ic{box-shadow:0 4px 14px rgba(63,91,224,.35)}
+.form{gap:16px}
+.photo-in .thumb{border:1.5px dashed var(--line);background:var(--field)}
+@media (max-width:420px){.stats{grid-template-columns:repeat(2,1fr)}.grid2{grid-template-columns:1fr}}
+@media print{
+  header.top,nav.tabs,.noprint,.banner{display:none!important}
+  body{background:#fff} body::before{display:none} main{padding:0}
+  .app{max-width:none;padding:0}
+  .labels{grid-template-columns:repeat(4,1fr)}
+  .label{border:1px dashed #999}
+}
+</style>
+</head>
+<body>
+
+<div class="app">
+  <header class="top" id="hdr"></header>
+  <main id="main"></main>
+</div>
+<nav class="tabs noprint" id="tabs"></nav>
+<input type="file" id="fileCam" accept="image/*" capture="environment" hidden>
+
+<script>
+"use strict";
+/* ---------- i18n ---------- */
+const L={
+en:{app:"PartTrace",enter:"Enter ",selGroup:"Select group",tag:"Big parts tracker",home:"Home",parts:"Parts",check:"Check",places:"Places",more:"More",
+unsynced:"{n} not synced",demo:"Sample data for the demo. Load it again or clear it under More.",
+stParts:"Parts",stSeries:"Series",stPlaces:"Locations",stAlerts:"Alerts",
+actRegister:"Register part",actRegisterSub:"Scan a label, add components, set location",actCheck:"Check / Move",actCheckSub:"Confirm where a part is now",actFind:"Find part",actLabels:"Print labels",
+alerts:"Needs attention",noAlerts:"Nothing needs attention.",alSplit:"Series split across {n} locations",alNotSeen:"Not scanned for {d} days",alRepair:"In repair for {d} days",alGps:"Last GPS outside store area ({m} m)",
+recent:"Recent activity",noEvents:"No activity yet.",
+ev_REGISTER:"Registered",ev_LINK:"Linked to {p}",ev_UNLINK:"Unlinked from {p}",ev_MOVE:"Moved to {l}",ev_CHECK:"Checked at {l}",ev_STATUS:"Status: {s}",ev_EDIT:"Details edited",
+s_in_store:"In store",s_installed:"Installed",s_removed:"Removed",s_repair_in:"In-house repair",s_repair_out:"Sent to vendor",s_scrapped:"Scrapped",
+search:"Search name, ID or serial",all:"All",noParts:"No parts match.",comps:"{n} components",noLoc:"No location yet",seen:"seen {t}",
+justnow:"just now",minAgo:"{n} min ago",hAgo:"{n} h ago",dAgo:"{n} d ago",
+series:"Series",history:"History",details:"Details",partOf:"Part of {p}",
+f_name:"Part name",f_group:"Group",f_cls:"Class",f_mfr:"Manufacturer",f_model:"Model type",f_serial:"Serial no.",f_critical:"Critical part",f_photo:"Photo",f_status:"Status",f_loc:"Location",f_wo:"Work order no.",f_note:"Remark",f_gps:"Last GPS",f_created:"Registered",
+checkThis:"Check / move",addComp:"Add component",unlink:"Unlink",edit:"Edit",save:"Save",cancel:"Cancel",next:"Next",back:"Back",done:"Done",openMap:"Open in Maps",addPhoto:"Add photo",changePhoto:"Change photo",
+w1:"Scan label",w2:"Details",w3:"Components",w4:"Location",w5:"Review",
+w1help:"Stick a new QR label on the part, then scan it.",scanLabel:"Scan label",autoId:"No label? Use next ID {id}",idUsed:"Label {id} is already registered to {n}.",
+isMain:"Main part with components",isMainHelp:"Tick if this part was taken apart or has components you want to track with it.",
+compHelp:"Scan the label on each component. Each one is linked to {id}.",scanComp:"Scan component",compName:"Component name",noComps:"No components yet.",
+locHelp:"Scan the QR at the store, rack, shelf or bin.",scanLoc:"Scan location",
+gpsGetting:"Getting GPS…",gpsOk:"GPS ±{a} m",gpsNone:"GPS not available. Saved without it.",gpsRetry:"Retry GPS",
+review:"{n} part(s) will be registered at {l}.",registered:"Registered {n} part(s)",
+ckHelp:"Scan the label on the part.",scanPart:"Scan part",unknownPart:"Label {id} is not registered yet.",registerIt:"Register it",
+nowAt:"Scan where it is now",rSame:"Same location as last check",rMoved:"Moved from {a}",rFirst:"First location recorded",rGpsOut:"GPS is {d} m from this location (limit {r} m)",rGpsIn:"GPS matches this location ({d} m)",rGpsLow:"GPS accuracy is low (±{a} m). The location QR is used.",rSplit:"Other parts of this series are elsewhere: {x}",rNoPoint:"This location has no GPS point yet.",
+seenHere:"Components seen here",seenHelp:"Tick the components you can see at this location.",saved:"Saved",
+addLoc:"Add location",locName:"Location name",type:"Type",parentLoc:"Inside",none:"None (top level)",site:"Site",radius:"Allowed GPS radius (m)",setPoint:"Set GPS point here",noPoint:"No GPS point set",partsHere:"Parts here",locLabels:"Print location labels",pointSet:"GPS point saved",
+t_Store:"Store",t_Zone:"Zone",t_Rack:"Rack",t_Shelf:"Shelf",t_Bin:"Bin",t_Yard:"Yard",t_Workshop:"Workshop",
+labels:"QR labels",labelsHelp:"Pre-print blank labels so the team can tag parts without signal. Each ID is reserved for this device.",count:"How many",generate:"Generate",print:"Print",labelsMade:"Labels {a} to {b}",
+settings:"Settings",userName:"Your name",lang:"Language",devCode:"Device code (label prefix)",notSeenDays:"Alert if not scanned for (days)",repairDays:"Alert if in repair for (days)",
+data:"Data",export:"Export to Excel",resetDemo:"Load sample data",clearAll:"Clear all data",confirmClear:"Tap again to clear everything on this device",cleared:"All data cleared",demoLoaded:"Sample data loaded",
+offlineNote:"Works offline. Data is kept on this device. Sync to Google Sheets comes in phase 2.",
+scanTitle:"Point the camera at the QR",camNo:"Live camera isn't available here. Take a photo of the QR, type the code, or pick from the list.",photoQr:"Photo of QR",typeCode:"Type code",go:"OK",pick:"Pick from list",choose:"Choose…",
+noQr:"No QR found in that photo. Try closer and with more light.",notLoc:"That is a part label. Scan a location QR.",unknownLoc:"Location {id} not found.",isLoc:"That is a location QR. Scan a part label.",
+required:"Please enter {f}.",newParts:"Unused labels",existing:"Registered parts",installNote:"Add to Home Screen to use without signal."},
+th:{app:"PartTrace",enter:"กรอก",selGroup:"เลือกกลุ่ม",tag:"ติดตามชิ้นส่วนใหญ่",home:"หน้าแรก",parts:"ชิ้นส่วน",check:"ตรวจเช็ค",places:"จุดเก็บ",more:"เพิ่มเติม",
+unsynced:"ยังไม่ซิงค์ {n}",demo:"ข้อมูลตัวอย่างสำหรับเดโม โหลดใหม่หรือล้างได้ที่เมนูเพิ่มเติม",
+stParts:"ชิ้นส่วน",stSeries:"ซีรีย์",stPlaces:"จุดเก็บ",stAlerts:"แจ้งเตือน",
+actRegister:"ลงทะเบียนชิ้นส่วน",actRegisterSub:"สแกนป้าย เพิ่มชิ้นลูก ระบุจุดเก็บ",actCheck:"ตรวจเช็ค / ย้าย",actCheckSub:"ยืนยันตำแหน่งปัจจุบันของชิ้นส่วน",actFind:"ค้นหาชิ้นส่วน",actLabels:"พิมพ์ป้าย",
+alerts:"ต้องตรวจสอบ",noAlerts:"ไม่มีรายการที่ต้องตรวจสอบ",alSplit:"ชิ้นส่วนในซีรีย์อยู่ {n} จุด",alNotSeen:"ไม่ถูกสแกนมา {d} วัน",alRepair:"อยู่ระหว่างซ่อม {d} วัน",alGps:"GPS ล่าสุดอยู่นอกพื้นที่สโตร์ ({m} ม.)",
+recent:"ความเคลื่อนไหวล่าสุด",noEvents:"ยังไม่มีความเคลื่อนไหว",
+ev_REGISTER:"ลงทะเบียน",ev_LINK:"ผูกกับ {p}",ev_UNLINK:"ยกเลิกการผูกจาก {p}",ev_MOVE:"ย้ายไป {l}",ev_CHECK:"ตรวจเช็คที่ {l}",ev_STATUS:"สถานะ: {s}",ev_EDIT:"แก้ไขรายละเอียด",
+s_in_store:"เก็บในคลัง",s_installed:"ติดตั้งอยู่",s_removed:"ถอดออก",s_repair_in:"ซ่อมภายใน",s_repair_out:"ส่งซ่อมภายนอก",s_scrapped:"ปลดระวาง",
+search:"ค้นหาชื่อ รหัส หรือซีเรียล",all:"ทั้งหมด",noParts:"ไม่พบชิ้นส่วน",comps:"{n} ชิ้นลูก",noLoc:"ยังไม่ระบุจุดเก็บ",seen:"เห็น {t}",
+justnow:"เมื่อสักครู่",minAgo:"{n} นาทีที่แล้ว",hAgo:"{n} ชม.ที่แล้ว",dAgo:"{n} วันที่แล้ว",
+series:"ซีรีย์",history:"ประวัติ",details:"รายละเอียด",partOf:"เป็นส่วนของ {p}",
+f_name:"ชื่อชิ้นส่วน",f_group:"กลุ่ม",f_cls:"คลาส",f_mfr:"ผู้ผลิต",f_model:"รุ่น",f_serial:"ซีเรียล",f_critical:"ชิ้นส่วนสำคัญ (Critical)",f_photo:"รูปถ่าย",f_status:"สถานะ",f_loc:"จุดเก็บ",f_wo:"เลขใบแจ้งซ่อม",f_note:"หมายเหตุ",f_gps:"GPS ล่าสุด",f_created:"ลงทะเบียนเมื่อ",
+checkThis:"ตรวจเช็ค / ย้าย",addComp:"เพิ่มชิ้นลูก",unlink:"ยกเลิกผูก",edit:"แก้ไข",save:"บันทึก",cancel:"ยกเลิก",next:"ถัดไป",back:"ย้อนกลับ",done:"เสร็จ",openMap:"เปิดแผนที่",addPhoto:"เพิ่มรูป",changePhoto:"เปลี่ยนรูป",
+w1:"สแกนป้าย",w2:"รายละเอียด",w3:"ชิ้นลูก",w4:"จุดเก็บ",w5:"ตรวจทาน",
+w1help:"แปะป้าย QR ใหม่ที่ชิ้นส่วน แล้วสแกน",scanLabel:"สแกนป้าย",autoId:"ไม่มีป้าย? ใช้รหัสถัดไป {id}",idUsed:"ป้าย {id} ลงทะเบียนแล้วกับ {n}",
+isMain:"เป็นตัวหลักที่มีชิ้นลูก",isMainHelp:"ติ๊กถ้าชิ้นนี้ถูกแยกชิ้นส่วน หรือมีชิ้นประกอบที่ต้องติดตามไปด้วย",
+compHelp:"สแกนป้ายของชิ้นลูกแต่ละชิ้น ระบบจะผูกกับ {id}",scanComp:"สแกนชิ้นลูก",compName:"ชื่อชิ้นลูก",noComps:"ยังไม่มีชิ้นลูก",
+locHelp:"สแกน QR ที่สโตร์ ชั้นวาง ชั้น หรือ BIN",scanLoc:"สแกนจุดเก็บ",
+gpsGetting:"กำลังจับ GPS…",gpsOk:"GPS ±{a} ม.",gpsNone:"จับ GPS ไม่ได้ จะบันทึกโดยไม่มีพิกัด",gpsRetry:"จับ GPS ใหม่",
+review:"จะลงทะเบียน {n} ชิ้น ที่ {l}",registered:"ลงทะเบียน {n} ชิ้นแล้ว",
+ckHelp:"สแกนป้ายที่ชิ้นส่วน",scanPart:"สแกนชิ้นส่วน",unknownPart:"ป้าย {id} ยังไม่ได้ลงทะเบียน",registerIt:"ลงทะเบียน",
+nowAt:"สแกนจุดที่อยู่ตอนนี้",rSame:"อยู่ที่เดิมเหมือนครั้งก่อน",rMoved:"ย้ายมาจาก {a}",rFirst:"บันทึกจุดเก็บครั้งแรก",rGpsOut:"GPS ห่างจากจุดนี้ {d} ม. (กำหนด {r} ม.)",rGpsIn:"GPS ตรงกับจุดนี้ ({d} ม.)",rGpsLow:"GPS แม่นยำต่ำ (±{a} ม.) ใช้ QR จุดเก็บเป็นหลัก",rSplit:"ชิ้นอื่นในซีรีย์อยู่ที่อื่น: {x}",rNoPoint:"จุดนี้ยังไม่ได้ตั้งพิกัด GPS",
+seenHere:"ชิ้นลูกที่พบที่นี่",seenHelp:"ติ๊กชิ้นลูกที่เห็นอยู่ที่จุดนี้",saved:"บันทึกแล้ว",
+addLoc:"เพิ่มจุดเก็บ",locName:"ชื่อจุดเก็บ",type:"ประเภท",parentLoc:"อยู่ภายใน",none:"ไม่มี (ชั้นบนสุด)",site:"ไซต์",radius:"รัศมี GPS ที่ยอมรับ (ม.)",setPoint:"ตั้งพิกัดที่นี่",noPoint:"ยังไม่ตั้งพิกัด",partsHere:"ชิ้นส่วนที่นี่",locLabels:"พิมพ์ป้ายจุดเก็บ",pointSet:"บันทึกพิกัดแล้ว",
+t_Store:"สโตร์",t_Zone:"โซน",t_Rack:"ชั้นวาง (Rack)",t_Shelf:"ชั้น (Shelf)",t_Bin:"BIN",t_Yard:"ลาน",t_Workshop:"โรงซ่อม",
+labels:"ป้าย QR",labelsHelp:"พิมพ์ป้ายเปล่าไว้ล่วงหน้า ให้ทีมติดป้ายได้แม้ไม่มีสัญญาณ รหัสจะถูกจองให้เครื่องนี้",count:"จำนวน",generate:"สร้างป้าย",print:"พิมพ์",labelsMade:"ป้าย {a} ถึง {b}",
+settings:"ตั้งค่า",userName:"ชื่อผู้ใช้",lang:"ภาษา",devCode:"รหัสเครื่อง (นำหน้าป้าย)",notSeenDays:"แจ้งเตือนเมื่อไม่ถูกสแกน (วัน)",repairDays:"แจ้งเตือนเมื่อซ่อมเกิน (วัน)",
+data:"ข้อมูล",export:"ส่งออก Excel",resetDemo:"โหลดข้อมูลตัวอย่าง",clearAll:"ล้างข้อมูลทั้งหมด",confirmClear:"แตะอีกครั้งเพื่อล้างข้อมูลทั้งหมดในเครื่องนี้",cleared:"ล้างข้อมูลแล้ว",demoLoaded:"โหลดข้อมูลตัวอย่างแล้ว",
+offlineNote:"ใช้งานออฟไลน์ได้ ข้อมูลเก็บในเครื่องนี้ ระบบซิงค์ Google Sheets จะมาในเฟส 2",
+scanTitle:"เล็งกล้องไปที่ QR",camNo:"ใช้กล้องสดที่นี่ไม่ได้ ถ่ายรูป QR พิมพ์รหัส หรือเลือกจากรายการแทน",photoQr:"ถ่ายรูป QR",typeCode:"พิมพ์รหัส",go:"ตกลง",pick:"เลือกจากรายการ",choose:"เลือก…",
+noQr:"ไม่พบ QR ในรูป ลองถ่ายใกล้ขึ้นและให้แสงพอ",notLoc:"นี่คือป้ายชิ้นส่วน กรุณาสแกน QR จุดเก็บ",unknownLoc:"ไม่พบจุดเก็บ {id}",isLoc:"นี่คือ QR จุดเก็บ กรุณาสแกนป้ายชิ้นส่วน",
+required:"กรุณากรอก{f}",newParts:"ป้ายที่ยังไม่ใช้",existing:"ชิ้นส่วนที่ลงทะเบียนแล้ว",installNote:"เพิ่มลงหน้าจอหลักเพื่อใช้งานแม้ไม่มีสัญญาณ"}};
+const STATUSES=["in_store","installed","removed","repair_in","repair_out","scrapped"];
+const LTYPES=["Store","Zone","Rack","Shelf","Bin","Yard","Workshop"];
+const GROUPS=["Mechanical","Electrical","Hydraulic","Pneumatic","Instrument","Structural"];
+
+/* ---------- state ---------- */
+let S={parts:[],locations:[],events:[],photos:{}};
+let set={id:"settings",lang:"en",user:"Demo User",site:"Demo Plant",dev:"A",notSeen:30,repairDays:14,labelSeq:1,locSeq:1,demo:false};
+let V={tab:"home",stack:[]};          // navigation
+let wz=null, ck=null, filt={q:"",st:"all"}, clearArm=0, madeLabels=null;
+
+function t(k,p){let s=(L[set.lang]&&L[set.lang][k])||L.en[k]||k;if(p)for(const x in p)s=s.split("{"+x+"}").join(p[x]);return s}
+function ph(k){const x=t(k);return h(t("enter")+(set.lang==="en"?x.toLowerCase():x))}
+function h(s){return String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
+const $=s=>document.querySelector(s);
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+const DAY=864e5;
+
+/* ---------- IndexedDB (falls back to memory) ---------- */
+const DB={db:null,
+  open(){return new Promise(res=>{try{const r=indexedDB.open("parttrace",1);
+    r.onupgradeneeded=()=>{const d=r.result;["parts","locations","events","photos","meta"].forEach(s=>{if(!d.objectStoreNames.contains(s))d.createObjectStore(s,{keyPath:"id"})})};
+    r.onsuccess=()=>{this.db=r.result;res()};r.onerror=()=>res();r.onblocked=()=>res()}catch(e){res()}})},
+  tx(s,m){return this.db.transaction(s,m).objectStore(s)},
+  all(s){return new Promise(res=>{if(!this.db)return res([]);try{const r=this.tx(s,"readonly").getAll();r.onsuccess=()=>res(r.result||[]);r.onerror=()=>res([])}catch(e){res([])}})},
+  put(s,o){if(!this.db)return;try{this.tx(s,"readwrite").put(o)}catch(e){}},
+  clear(s){if(!this.db)return;try{this.tx(s,"readwrite").clear()}catch(e){}}
+};
+function saveSet(){DB.put("meta",set)}
+function putPart(p){const i=S.parts.findIndex(x=>x.id===p.id);if(i<0)S.parts.push(p);else S.parts[i]=p;DB.put("parts",p)}
+function putLoc(l){const i=S.locations.findIndex(x=>x.id===l.id);if(i<0)S.locations.push(l);else S.locations[i]=l;DB.put("locations",l)}
+function addEv(e){e.id=e.id||uid();e.ts=e.ts||Date.now();e.user=e.user||set.user;e.synced=!!e.synced;S.events.push(e);DB.put("events",e)}
+function putPhoto(id,data){S.photos[id]=data;DB.put("photos",{id,data})}
+
+/* ---------- lookups ---------- */
+const P=id=>S.parts.find(p=>p.id===id);
+const LO=id=>S.locations.find(l=>l.id===id);
+const kids=id=>S.parts.filter(p=>p.parent===id);
+function desc(id){const out=[];(function w(x){kids(x).forEach(k=>{out.push(k);w(k.id)})})(id);return out}
+function rootOf(p){let r=p,g=0;while(r&&r.parent&&P(r.parent)&&g++<20)r=P(r.parent);return r}
+function locPath(id){if(!id)return t("noLoc");const n=[];let l=LO(id),g=0;while(l&&g++<10){n.unshift(l.name);l=LO(l.parent)}return n.join(" › ")||id}
+function locArea(id){let l=LO(id),g=0;while(l&&g++<10){if(l.lat!=null)return l;l=LO(l.parent)}return null}
+function dist(a,b){const R=6371e3,r=Math.PI/180,dl=(b.lat-a.lat)*r,dn=(b.lng-a.lng)*r;const x=Math.sin(dl/2)**2+Math.cos(a.lat*r)*Math.cos(b.lat*r)*Math.sin(dn/2)**2;return Math.round(2*R*Math.asin(Math.sqrt(x)))}
+function ago(ts){if(!ts)return "—";const m=(Date.now()-ts)/6e4;if(m<1)return t("justnow");if(m<60)return t("minAgo",{n:Math.floor(m)});if(m<1440)return t("hAgo",{n:Math.floor(m/60)});return t("dAgo",{n:Math.floor(m/1440)})}
+function fdate(ts){const d=new Date(ts);return d.toLocaleDateString(set.lang==="th"?"th-TH":"en-GB",{day:"2-digit",month:"short"})+" "+d.toLocaleTimeString(set.lang==="th"?"th-TH":"en-GB",{hour:"2-digit",minute:"2-digit"})}
+function nextLabel(){return "AST-"+set.dev+String(set.labelSeq).padStart(5,"0")}
+function initials(n){return (n||"?").replace(/[^A-Za-z0-9฀-๿ ]/g,"").split(/\s+/).filter(Boolean).slice(0,2).map(w=>w[0]).join("").toUpperCase()||"?"}
+function thumb(p,cls){const src=p&&p.photo&&S.photos[p.photo];return src?`<img class="thumb ${cls||""}" src="${src}" alt="">`:`<div class="thumb ${cls||""}" aria-hidden="true">${h(initials(p&&p.name))}</div>`}
+function chip(s){return `<span class="chip st-${s}">${h(t("s_"+s))}</span>`}
+const unsynced=()=>S.events.filter(e=>!e.synced).length;
+
+/* ---------- alerts ---------- */
+function alerts(){
+  const out=[],now=Date.now();
+  S.parts.filter(p=>!p.parent&&kids(p.id).length).forEach(r=>{
+    const locs=new Set([r,...desc(r.id)].filter(p=>p.status!=="scrapped"&&p.status!=="installed"&&p.loc).map(p=>p.loc));
+    if(locs.size>1)out.push({sev:"bad",part:r,txt:t("alSplit",{n:locs.size})})});
+  S.parts.forEach(p=>{
+    if(p.status==="scrapped")return;
+    if((p.status==="repair_in"||p.status==="repair_out")&&now-(p.statusTs||0)>set.repairDays*DAY)out.push({sev:"warn",part:p,txt:t("alRepair",{d:Math.floor((now-p.statusTs)/DAY)})});
+    else if(p.status!=="installed"&&now-(p.lastSeen||0)>set.notSeen*DAY)out.push({sev:"warn",part:p,txt:t("alNotSeen",{d:Math.floor((now-(p.lastSeen||0))/DAY)})});
+    const le=S.events.filter(e=>e.part===p.id&&e.gpsOut!=null).sort((a,b)=>b.ts-a.ts)[0];
+    const lastLoc=S.events.filter(e=>e.part===p.id&&(e.type==="CHECK"||e.type==="MOVE"||e.type==="REGISTER")).sort((a,b)=>b.ts-a.ts)[0];
+    if(le&&lastLoc&&le.id===lastLoc.id&&le.gpsOut>0)out.push({sev:"warn",part:p,txt:t("alGps",{m:le.gpsOut})});
+  });
+  return out;
+}
+
+/* ---------- toast ---------- */
+let toastT;function toast(m){let el=$(".toast");if(!el){el=document.createElement("div");el.className="toast";el.setAttribute("role","status");document.body.appendChild(el)}el.textContent=m;el.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>el.hidden=true,2600)}
+
+/* ---------- icons ---------- */
+const I={
+home:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg>',
+parts:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8l-9-5-9 5 9 5 9-5z"/><path d="M3 8v8l9 5 9-5V8"/><path d="M12 13v8"/></svg>',
+scan:'<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3M7 12h10"/></svg>',
+places:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-6.2-7-12a7 7 0 0 1 14 0c0 5.8-7 12-7 12z"/><circle cx="12" cy="9" r="2.5"/></svg>',
+more:'<svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>',
+plus:'<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>',
+search:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>',
+qr:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3h-3zM20 14v.01M14 20h.01M17 20h4v-3"/></svg>',
+cam:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>'
+};
+
+/* ---------- navigation ---------- */
+function go(tab){V={tab,stack:[]};if(tab==="check"&&!ck)ck={step:1};render();scrollTo(0,0)}
+function push(view,param){V.stack.push({view,param});render();scrollTo(0,0)}
+function pop(){V.stack.pop();render();scrollTo(0,0)}
+function cur(){return V.stack.length?V.stack[V.stack.length-1]:{view:V.tab}}
+
+function header(title,canBack){
+  const n=unsynced();
+  $("#hdr").innerHTML=`${canBack?`<button class="back" data-act="pop" aria-label="${h(t("back"))}">‹</button>`:""}
+  <h1>${h(title)}</h1>
+  ${n?`<span class="pill" title="${h(t("offlineNote"))}">${h(t("unsynced",{n}))}</span>`:""}
+  <div class="lang" role="group" aria-label="${h(t("lang"))}"><button data-act="lang" data-v="en" aria-pressed="${set.lang==="en"}">EN</button><button data-act="lang" data-v="th" aria-pressed="${set.lang==="th"}">ไทย</button></div>`;
+}
+function tabs(){
+  const b=(k,ic,cls)=>`<button class="${cls||""}" data-act="tab" data-v="${k}" ${V.tab===k?'aria-current="page"':""}><span class="ic">${I[ic]}</span>${h(t(k))}</button>`;
+  $("#tabs").innerHTML=`<div class="in">${b("home","home")}${b("parts","parts")}${b("check","scan","scan")}${b("places","places")}${b("more","more")}</div>`;
+}
+function render(){
+  document.documentElement.lang=set.lang;
+  const c=cur(),m=$("#main");let title=t("app"),back=V.stack.length>0;
+  const views={home:vHome,parts:vParts,check:vCheck,places:vPlaces,more:vMore,part:vPart,register:vRegister,loc:vLoc,locForm:vLocForm,labels:vLabels,editPart:vEditPart};
+  const r=(views[c.view]||vHome)(c.param);
+  title=r.title||title;m.innerHTML=r.html;header(title,back);tabs();
+  if(r.after)r.after();
+}
+
+/* ---------- views ---------- */
+function vHome(){
+  const al=alerts(),roots=S.parts.filter(p=>!p.parent&&kids(p.id).length).length;
+  const ev=[...S.events].sort((a,b)=>b.ts-a.ts).slice(0,6);
+  return{title:t("app")+" · "+t("tag"),html:`
+  ${set.demo?`<div class="banner">${h(t("demo"))}</div>`:""}
+  <section class="stats">
+    <div class="stat"><b>${S.parts.length}</b><span>${h(t("stParts"))}</span></div>
+    <div class="stat"><b>${roots}</b><span>${h(t("stSeries"))}</span></div>
+    <div class="stat"><b>${S.locations.length}</b><span>${h(t("stPlaces"))}</span></div>
+    <div class="stat ${al.length?"alert":""}"><b>${al.length}</b><span>${h(t("stAlerts"))}</span></div>
+  </section>
+  <section class="acts">
+    <button class="bigact primary" data-act="startReg"><span class="ic">${I.plus}</span><span><strong>${h(t("actRegister"))}</strong><small>${h(t("actRegisterSub"))}</small></span></button>
+    <button class="bigact" data-act="tab" data-v="check"><span class="ic">${I.scan}</span><span><strong>${h(t("actCheck"))}</strong><small>${h(t("actCheckSub"))}</small></span></button>
+    <div class="row2">
+      <button class="bigact" data-act="tab" data-v="parts"><span class="ic">${I.search}</span><strong>${h(t("actFind"))}</strong></button>
+      <button class="bigact" data-act="push" data-v="labels"><span class="ic">${I.qr}</span><strong>${h(t("actLabels"))}</strong></button>
+    </div>
+  </section>
+  <section><h2>${h(t("alerts"))}</h2><div class="list">${al.length?al.map(a=>`<button class="item" data-act="part" data-id="${h(a.part.id)}"><span class="alert-ic sev-${a.sev}">!</span><span class="body"><span class="t">${h(a.part.name)}</span><span class="s">${h(a.txt)} · <span class="mono">${h(a.part.id)}</span></span></span></button>`).join(""):`<div class="empty">${h(t("noAlerts"))}</div>`}</div></section>
+  <section><h2>${h(t("recent"))}</h2><div class="list">${ev.length?ev.map(evRow).join(""):`<div class="empty">${h(t("noEvents"))}</div>`}</div></section>`};
+}
+function evText(e){const p=e.parent?(P(e.parent)||{name:e.parent}).name:"";return t("ev_"+e.type,{p,l:locPath(e.loc),s:t("s_"+e.status)})}
+function evRow(e){const p=P(e.part)||{name:e.part,id:e.part};return `<button class="item" data-act="part" data-id="${h(p.id)}">${thumb(p)}<span class="body"><span class="t">${h(p.name)}</span><span class="s">${h(evText(e))} · ${h(ago(e.ts))}</span></span></button>`}
+
+function partRow(p,child){
+  const nk=kids(p.id).length,split=!child&&nk&&alerts().some(a=>a.part.id===p.id&&a.sev==="bad");
+  return `<button class="item ${child?"child":""}" data-act="part" data-id="${h(p.id)}">${thumb(p)}<span class="body"><span class="t">${split?'<span class="warnmark">! </span>':""}${h(p.name)}</span><span class="s"><span class="mono">${h(p.id)}</span> · ${h(locPath(p.loc))}${nk?" · "+h(t("comps",{n:nk})):""}</span></span>${chip(p.status)}</button>`;
+}
+function vParts(){
+  const q=filt.q.trim().toLowerCase();
+  const match=p=>(filt.st==="all"||p.status===filt.st)&&(!q||[p.id,p.name,p.serial,p.model,p.mfr].join(" ").toLowerCase().includes(q));
+  let rows="";
+  const roots=S.parts.filter(p=>!p.parent||!P(p.parent)).sort((a,b)=>a.name.localeCompare(b.name));
+  roots.forEach(r=>{const d=desc(r.id),rm=match(r),dm=d.filter(match);if(rm||dm.length){rows+=partRow(r,false);(q||filt.st!=="all"?dm:d).forEach(c=>rows+=partRow(c,true))}});
+  return{title:t("parts"),html:`
+  <div class="inline noprint"><input type="search" id="q" placeholder="${h(t("search"))}" value="${h(filt.q)}" aria-label="${h(t("search"))}"><button class="btn primary" data-act="startReg" aria-label="${h(t("actRegister"))}">${I.plus}</button></div>
+  <div class="chips">${["all",...STATUSES].map(s=>`<button data-act="filt" data-v="${s}" aria-pressed="${filt.st===s}">${h(s==="all"?t("all"):t("s_"+s))}</button>`).join("")}</div>
+  <div class="list" id="plist">${rows||`<div class="empty">${h(t("noParts"))}</div>`}</div>`,
+  after(){const q=$("#q");q.addEventListener("input",()=>{filt.q=q.value;const pos=q.selectionStart;render();const n=$("#q");n.focus();n.setSelectionRange(pos,pos)})}};
+}
+
+function vPart(id){
+  const p=P(id);if(!p)return{html:`<div class="empty">${h(id)}</div>`};
+  const root=rootOf(p),mem=[root,...desc(root.id)],hasSeries=mem.length>1;
+  const ev=S.events.filter(e=>e.part===id).sort((a,b)=>b.ts-a.ts);
+  const g=p.gps;
+  return{title:p.name,html:`
+  <section class="card hero">${thumb(p)}<div style="min-width:0;flex:1"><div class="mono muted">${h(p.id)}</div><div style="font-weight:700;font-size:18px">${h(p.name)}</div><div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px">${chip(p.status)}${p.critical?`<span class="chip sev-bad">Critical</span>`:""}</div></div></section>
+  <section class="card"><dl class="kv">
+    <dt>${h(t("f_loc"))}</dt><dd>${p.loc?`<a href="#" data-act="loc" data-id="${h(p.loc)}">${h(locPath(p.loc))}</a>`:h(t("noLoc"))}<div class="small muted">${h(t("seen",{t:ago(p.lastSeen)}))}</div></dd>
+    ${p.parent?`<dt>${h(t("series"))}</dt><dd>${h(t("partOf",{p:(P(p.parent)||{}).name||p.parent}))}</dd>`:""}
+    <dt>${h(t("f_gps"))}</dt><dd>${g?`${g.lat.toFixed(5)}, ${g.lng.toFixed(5)} <span class="muted">±${Math.round(g.acc)} m</span><br><a href="https://www.google.com/maps?q=${g.lat},${g.lng}" target="_blank" rel="noopener">${h(t("openMap"))}</a>`:"—"}</dd>
+    ${p.group?`<dt>${h(t("f_group"))}</dt><dd>${h(p.group)}</dd>`:""}
+    ${p.mfr?`<dt>${h(t("f_mfr"))}</dt><dd>${h(p.mfr)}</dd>`:""}
+    ${p.model?`<dt>${h(t("f_model"))}</dt><dd>${h(p.model)}</dd>`:""}
+    ${p.serial?`<dt>${h(t("f_serial"))}</dt><dd class="mono">${h(p.serial)}</dd>`:""}
+    <dt>${h(t("f_created"))}</dt><dd>${h(fdate(p.created))}</dd>
+  </dl></section>
+  <div class="btns"><button class="btn primary" data-act="checkPart" data-id="${h(p.id)}">${I.scan} ${h(t("checkThis"))}</button><button class="btn outline" data-act="push" data-v="editPart" data-id="${h(p.id)}">${h(t("edit"))}</button></div>
+  <section><h2>${h(t("series"))}</h2><div class="list">
+    ${hasSeries?mem.map(m=>{const diff=m.loc!==root.loc&&m.status!=="installed"&&m.status!=="scrapped";return `<button class="item ${m.id===root.id?"":"child"}" data-act="part" data-id="${h(m.id)}" ${m.id===id?'style="background:var(--brand-soft)"':""}>${thumb(m)}<span class="body"><span class="t">${diff?'<span class="warnmark">! </span>':""}${h(m.name)}</span><span class="s"><span class="mono">${h(m.id)}</span> · ${h(locPath(m.loc))}</span></span>${chip(m.status)}</button>`}).join(""):`<div class="empty">${h(t("noComps"))}</div>`}
+  </div>
+  <div class="btns" style="margin-top:10px"><button class="btn outline" data-act="addComp" data-id="${h(p.id)}">${I.plus} ${h(t("addComp"))}</button>${p.parent?`<button class="btn danger" data-act="unlink" data-id="${h(p.id)}">${h(t("unlink"))}</button>`:""}</div></section>
+  <section><h2>${h(t("history"))}</h2><div class="card timeline">${ev.map(e=>`<div class="tl"><time>${h(fdate(e.ts))}</time><div><div>${h(evText(e))}</div><div class="small muted">${h(e.user||"")}${e.gps?` · GPS ±${Math.round(e.gps.acc)} m`:""}${e.wo?` · WO ${h(e.wo)}`:""}${e.note?` · ${h(e.note)}`:""}</div>${e.gpsOut>0?`<div class="flag">${h(t("rGpsOut",{d:e.gpsOut,r:(locArea(e.loc)||{}).radius||"-"}))}</div>`:""}</div></div>`).join("")||`<div class="empty">${h(t("noEvents"))}</div>`}</div></section>`};
+}
+
+function vEditPart(id){
+  const p=P(id);
+  return{title:t("edit")+" · "+p.id,html:`<form class="form" id="ef">
+  ${photoField(p.photo)}
+  ${partFields(p)}
+  <label class="f">${h(t("f_status"))}<select id="e_status">${STATUSES.map(s=>`<option value="${s}" ${p.status===s?"selected":""}>${h(t("s_"+s))}</option>`).join("")}</select></label>
+  <div class="btns"><button type="button" class="btn" data-act="pop">${h(t("cancel"))}</button><button type="submit" class="btn primary">${h(t("save"))}</button></div></form>`,
+  after(){bindPhoto();$("#ef").addEventListener("submit",e=>{e.preventDefault();const v=readPart();if(!v.name)return toast(t("required",{f:t("f_name")}));
+    Object.assign(p,v);p.photo=pendingPhoto||p.photo;const ns=$("#e_status").value;
+    if(ns!==p.status){p.status=ns;p.statusTs=Date.now();addEv({type:"STATUS",part:p.id,status:ns,loc:p.loc})}
+    addEv({type:"EDIT",part:p.id,loc:p.loc});putPart(p);toast(t("saved"));pop()})}};
+}
+function partFields(p){p=p||{};return `
+  <label class="f">${h(t("f_name"))} *<input type="text" id="e_name" value="${h(p.name)}" placeholder="${ph("f_name")}" autocomplete="off"></label>
+  <div class="grid2">
+    <label class="f">${h(t("f_group"))}<select id="e_group"><option value="">${h(t("selGroup"))}</option>${GROUPS.map(g=>`<option ${p.group===g?"selected":""}>${g}</option>`).join("")}</select></label>
+    <label class="f">${h(t("f_cls"))}<input type="text" id="e_cls" value="${h(p.cls)}" placeholder="${ph("f_cls")}"></label>
+    <label class="f">${h(t("f_mfr"))}<input type="text" id="e_mfr" value="${h(p.mfr)}" placeholder="${ph("f_mfr")}"></label>
+    <label class="f">${h(t("f_model"))}<input type="text" id="e_model" value="${h(p.model)}" placeholder="${ph("f_model")}"></label>
+  </div>
+  <label class="f">${h(t("f_serial"))}<input type="text" id="e_serial" value="${h(p.serial)}" placeholder="${ph("f_serial")}"></label>
+  <label class="check"><input type="checkbox" id="e_crit" ${p.critical?"checked":""}><span><b>${h(t("f_critical"))}</b></span></label>`}
+function readPart(){return{name:$("#e_name").value.trim(),group:$("#e_group").value,cls:$("#e_cls").value.trim(),mfr:$("#e_mfr").value.trim(),model:$("#e_model").value.trim(),serial:$("#e_serial").value.trim(),critical:$("#e_crit").checked}}
+
+/* photo capture (file input works on every phone, also offline) */
+let pendingPhoto=null;
+function photoField(pid){pendingPhoto=null;const src=pid&&S.photos[pid];return `<div class="photo-in">${src?`<img id="phPrev" src="${src}" alt="">`:`<div class="thumb" id="phPrev" style="width:72px;height:72px">${I.cam}</div>`}<label class="btn outline">${I.cam} ${h(t(src?"changePhoto":"addPhoto"))}<input type="file" id="phIn" accept="image/*" capture="environment" hidden></label></div>`}
+function bindPhoto(cb){const i=$("#phIn");if(!i)return;i.addEventListener("change",async()=>{const f=i.files[0];if(!f)return;const d=await shrink(f);const id="ph_"+uid();putPhoto(id,d);pendingPhoto=id;const pv=$("#phPrev");pv.outerHTML=`<img id="phPrev" src="${d}" alt="" style="width:72px;height:72px;border-radius:12px;object-fit:cover">`;cb&&cb(id)})}
+function shrink(file){return new Promise(res=>{const img=new Image(),u=URL.createObjectURL(file);img.onload=()=>{const m=900,s=Math.min(1,m/Math.max(img.width,img.height)),c=document.createElement("canvas");c.width=Math.round(img.width*s);c.height=Math.round(img.height*s);c.getContext("2d").drawImage(img,0,0,c.width,c.height);URL.revokeObjectURL(u);res(c.toDataURL("image/jpeg",.72))};img.onerror=()=>res(null);img.src=u})}
+
+/* ---------- register wizard ---------- */
+function startReg(id){wz={step:id?2:1,id:id||null,main:false,children:[],loc:null,gps:null,gpsState:"idle",status:"in_store"};push("register")}
+function stepsBar(n,names){return `<div><div class="steps">${names.map((_,i)=>`<i class="${i<n?"on":""}"></i>`).join("")}</div><div class="stepname">${n}/${names.length} · ${h(names[n-1])}</div></div>`}
+function vRegister(){
+  const names=[t("w1"),t("w2"),t("w3"),t("w4"),t("w5")],s=wz.step;let body="";
+  if(s===1)body=`<p class="muted">${h(t("w1help"))}</p>
+    <button class="scanbtn" data-act="wzScanLabel">${I.scan}${h(t("scanLabel"))}</button>
+    <button class="btn ghost block" data-act="wzAuto">${h(t("autoId",{id:nextLabel()}))}</button>`;
+  if(s===2)body=`<div class="card"><div class="muted small">ID</div><div class="idbig">${h(wz.id)}</div></div>
+    <form class="form" id="wf">${photoField(wz.photo)}${partFields(wz)}
+    <label class="f">${h(t("f_status"))}<select id="e_status">${STATUSES.filter(x=>x!=="scrapped").map(x=>`<option value="${x}" ${wz.status===x?"selected":""}>${h(t("s_"+x))}</option>`).join("")}</select></label>
+    <label class="check"><input type="checkbox" id="e_main" ${wz.main?"checked":""}><span><b>${h(t("isMain"))}</b><small>${h(t("isMainHelp"))}</small></span></label>
+    <div class="btns"><button type="button" class="btn" data-act="wzBack">${h(t("back"))}</button><button class="btn primary" type="submit">${h(t("next"))}</button></div></form>`;
+  if(s===3)body=`<p class="muted">${h(t("compHelp",{id:wz.id}))}</p>
+    <div class="list">${wz.children.length?wz.children.map((c,i)=>`<div class="item child" style="cursor:default">${c.photo&&S.photos[c.photo]?`<img class="thumb" src="${S.photos[c.photo]}" alt="">`:`<div class="thumb">${h(initials(c.name))}</div>`}<span class="body"><input type="text" data-cn="${i}" value="${h(c.name)}" placeholder="${h(t("compName"))}" aria-label="${h(t("compName"))}"><span class="s mono">${h(c.id)}</span></span><label class="btn outline" style="min-height:40px;padding:8px" aria-label="${h(t("addPhoto"))}">${I.cam}<input type="file" accept="image/*" capture="environment" data-cp="${i}" hidden></label><button class="btn ghost" data-act="wzDelChild" data-i="${i}" aria-label="remove">✕</button></div>`).join(""):`<div class="empty">${h(t("noComps"))}</div>`}</div>
+    <button class="scanbtn" data-act="wzScanChild">${I.scan}${h(t("scanComp"))}</button>
+    <button class="btn ghost block" data-act="wzAutoChild">${h(t("autoId",{id:nextLabel()}))}</button>
+    <div class="btns"><button class="btn" data-act="wzBack">${h(t("back"))}</button><button class="btn primary" data-act="wzToLoc">${h(t("next"))}</button></div>`;
+  if(s===4)body=`<p class="muted">${h(t("locHelp"))}</p>
+    ${wz.loc?`<div class="card"><div class="muted small">${h(t("f_loc"))}</div><div style="font-weight:600">${h(locPath(wz.loc))}</div><div class="mono small muted">${h(wz.loc)}</div></div>`:""}
+    <button class="scanbtn" data-act="wzScanLoc">${I.places}${h(t("scanLoc"))}</button>
+    ${gpsLine(wz)}
+    <div class="btns"><button class="btn" data-act="wzBack">${h(t("back"))}</button><button class="btn primary" data-act="wzToReview" ${wz.loc?"":"disabled"}>${h(t("next"))}</button></div>`;
+  if(s===5){const all=[wz,...wz.children];const res=evalLoc(null,wz.loc,wz.gps);
+    body=`<div class="card"><p style="margin:0 0 10px">${h(t("review",{n:all.length,l:locPath(wz.loc)}))}</p><div class="list">${all.map((c,i)=>`<div class="item ${i?"child":""}" style="cursor:default"><div class="thumb">${h(initials(c.name))}</div><span class="body"><span class="t">${h(c.name)}</span><span class="s mono">${h(c.id)}</span></span></div>`).join("")}</div></div>
+    <div class="results">${res.map(resHtml).join("")}</div>
+    <div class="btns"><button class="btn" data-act="wzBack">${h(t("back"))}</button><button class="btn primary" data-act="wzSave">${h(t("save"))}</button></div>`}
+  return{title:t("actRegister"),html:stepsBar(s,names)+body,after(){
+    if(s===2){bindPhoto(id=>wz.photo=id);$("#wf").addEventListener("submit",e=>{e.preventDefault();const v=readPart();if(!v.name)return toast(t("required",{f:t("f_name")}));Object.assign(wz,v);wz.status=$("#e_status").value;wz.main=$("#e_main").checked;wz.step=wz.main?3:4;if(wz.step===4)autoGps(wz);render()})}
+    if(s===3){document.querySelectorAll("[data-cn]").forEach(i=>i.addEventListener("input",()=>wz.children[+i.dataset.cn].name=i.value));
+      document.querySelectorAll("[data-cp]").forEach(i=>i.addEventListener("change",async()=>{const f=i.files[0];if(!f)return;const d=await shrink(f),id="ph_"+uid();putPhoto(id,d);wz.children[+i.dataset.cp].photo=id;render()}))}
+  }};
+}
+function idTaken(id){return P(id)||(wz&&(wz.id===id||wz.children.some(c=>c.id===id)))}
+function bumpSeq(id){const m=new RegExp("^AST-"+set.dev+"(\\d{5})$").exec(id);if(m&&+m[1]>=set.labelSeq){set.labelSeq=+m[1]+1;saveSet()}}
+function claimAuto(){const id=nextLabel();set.labelSeq++;saveSet();return id}
+
+/* ---------- GPS ---------- */
+function getGps(){return new Promise(res=>{if(!navigator.geolocation)return res(null);let done=false;const tm=setTimeout(()=>{if(!done){done=true;res(null)}},20000);
+  try{navigator.geolocation.getCurrentPosition(p=>{if(done)return;done=true;clearTimeout(tm);res({lat:p.coords.latitude,lng:p.coords.longitude,acc:p.coords.accuracy,ts:Date.now()})},()=>{if(done)return;done=true;clearTimeout(tm);res(null)},{enableHighAccuracy:true,timeout:18000,maximumAge:15000})}catch(e){done=true;res(null)}})}
+async function autoGps(o){o.gpsState="wait";o.gps=null;render();const g=await getGps();o.gps=g;o.gpsState=g?"ok":"bad";render()}
+function gpsLine(o){const st=o.gpsState;return `<div class="card gps"><span class="dot ${st==="ok"?"ok":st==="wait"?"wait":st==="bad"?"bad":""}"></span><span style="flex:1">${st==="wait"?h(t("gpsGetting")):st==="ok"?h(t("gpsOk",{a:Math.round(o.gps.acc)}))+` <span class="muted small mono">${o.gps.lat.toFixed(5)}, ${o.gps.lng.toFixed(5)}</span>`:st==="bad"?h(t("gpsNone")):"GPS"}</span>${st!=="wait"?`<button class="btn ghost" data-act="gpsRetry">${h(t("gpsRetry"))}</button>`:""}</div>`}
+
+/* ---------- location evaluation ---------- */
+function evalLoc(part,locId,gps){
+  const out=[];
+  if(part){if(!part.loc)out.push({k:"info",m:t("rFirst")});else if(part.loc===locId)out.push({k:"ok",m:t("rSame")});else out.push({k:"warn",m:t("rMoved",{a:locPath(part.loc)})})}
+  const area=locArea(locId);let gpsOut=null;
+  if(gps&&area){const d=dist(gps,area);if(gps.acc>Math.max(100,area.radius*2))out.push({k:"info",m:t("rGpsLow",{a:Math.round(gps.acc)})});
+    else if(d>area.radius){gpsOut=d;out.push({k:"bad",m:t("rGpsOut",{d,r:area.radius})})}else{gpsOut=0;out.push({k:"ok",m:t("rGpsIn",{d})})}}
+  else if(gps&&!area)out.push({k:"info",m:t("rNoPoint")});
+  if(part){const r=rootOf(part),mem=[r,...desc(r.id)].filter(m=>m.id!==part.id&&m.status!=="installed"&&m.status!=="scrapped"&&m.loc&&m.loc!==locId&&!(ck&&ck.seen&&ck.seen[m.id]));
+    if(mem.length)out.push({k:"warn",m:t("rSplit",{x:mem.map(m=>m.name+" ("+locPath(m.loc)+")").join(", ")})})}
+  out.gpsOut=gpsOut;return out;
+}
+function resHtml(r){const ic={ok:"✓",warn:"!",bad:"!",info:"i"}[r.k];return `<div class="result ${r.k}"><b>${ic}</b><span>${h(r.m)}</span></div>`}
+
+/* ---------- check / move ---------- */
+function vCheck(){
+  if(!ck)ck={step:1};const p=ck.part&&P(ck.part);
+  let body="";
+  if(!p){body=`<p class="muted">${h(t("ckHelp"))}</p><button class="scanbtn" data-act="ckScanPart">${I.scan}${h(t("scanPart"))}</button>
+    ${ck.unknown?`<div class="result warn"><b>!</b><span>${h(t("unknownPart",{id:ck.unknown}))}</span></div><button class="btn primary block" data-act="regUnknown">${h(t("registerIt"))}</button>`:""}`;}
+  else{
+    const r=rootOf(p),others=[r,...desc(r.id)].filter(m=>m.id!==p.id&&m.status!=="scrapped");
+    const res=ck.loc?evalLoc(p,ck.loc,ck.gps):[];
+    body=`<section class="card hero">${thumb(p)}<div style="min-width:0;flex:1"><div class="mono muted">${h(p.id)}</div><div style="font-weight:700">${h(p.name)}</div><div class="small muted">${h(locPath(p.loc))} · ${h(t("seen",{t:ago(p.lastSeen)}))}</div><div style="margin-top:4px">${chip(p.status)}</div></div></section>
+    <h2 style="margin:0">${h(t("nowAt"))}</h2>
+    ${ck.loc?`<div class="card"><div style="font-weight:600">${h(locPath(ck.loc))}</div><div class="mono small muted">${h(ck.loc)}</div></div>`:""}
+    <button class="scanbtn" data-act="ckScanLoc">${I.places}${h(t("scanLoc"))}</button>
+    ${gpsLine(ck)}
+    ${res.length?`<div class="results">${res.map(resHtml).join("")}</div>`:""}
+    ${others.length?`<section><h2>${h(t("seenHere"))}</h2><p class="small muted" style="margin:0 0 8px">${h(t("seenHelp"))}</p><div class="form">${others.map(m=>`<label class="check"><input type="checkbox" data-seen="${h(m.id)}" ${ck.seen&&ck.seen[m.id]?"checked":""}><span><b>${h(m.name)}</b><small><span class="mono">${h(m.id)}</span> · ${h(locPath(m.loc))}</small></span></label>`).join("")}</div></section>`:""}
+    <div class="form">
+      <label class="f">${h(t("f_status"))}<select id="c_status">${STATUSES.map(s=>`<option value="${s}" ${(ck.status||p.status)===s?"selected":""}>${h(t("s_"+s))}</option>`).join("")}</select></label>
+      <div class="grid2"><label class="f">${h(t("f_wo"))}<input type="text" id="c_wo" value="${h(ck.wo||"")}" placeholder="${ph("f_wo")}"></label><label class="f">${h(t("f_note"))}<input type="text" id="c_note" value="${h(ck.note||"")}" placeholder="${ph("f_note")}"></label></div>
+    </div>
+    <div class="btns"><button class="btn" data-act="ckReset">${h(t("cancel"))}</button><button class="btn primary" data-act="ckSave" ${ck.loc?"":"disabled"}>${h(t("save"))}</button></div>`;
+  }
+  return{title:t("actCheck"),html:body,after(){
+    document.querySelectorAll("[data-seen]").forEach(i=>i.addEventListener("change",()=>{ck.seen=ck.seen||{};ck.seen[i.dataset.seen]=i.checked;keepForm();render()}));
+    ["c_status","c_wo","c_note"].forEach(id=>{const e=$("#"+id);e&&e.addEventListener("change",keepForm)})}};
+}
+function keepForm(){const s=$("#c_status");if(s){ck.status=s.value;ck.wo=$("#c_wo").value;ck.note=$("#c_note").value}}
+function saveCheck(){
+  keepForm();const p=P(ck.part),now=Date.now(),res=evalLoc(p,ck.loc,ck.gps);
+  const apply=(m,isMain)=>{const moved=m.loc!==ck.loc;
+    addEv({type:moved?"MOVE":"CHECK",part:m.id,loc:ck.loc,from:m.loc,gps:ck.gps,gpsOut:res.gpsOut,wo:isMain?ck.wo:"",note:isMain?ck.note:""});
+    m.loc=ck.loc;m.lastSeen=now;if(ck.gps)m.gps=ck.gps;putPart(m)};
+  apply(p,true);
+  if(ck.status&&ck.status!==p.status){p.status=ck.status;p.statusTs=now;addEv({type:"STATUS",part:p.id,status:ck.status,loc:ck.loc,wo:ck.wo});putPart(p)}
+  Object.keys(ck.seen||{}).filter(k=>ck.seen[k]).forEach(k=>{const m=P(k);if(m)apply(m,false)});
+  toast(t("saved"));const id=p.id;ck={step:1};V={tab:"check",stack:[{view:"part",param:id}]};render();
+}
+
+/* ---------- places ---------- */
+function vPlaces(){
+  const tree=(par,dep)=>S.locations.filter(l=>(l.parent||null)===par).sort((a,b)=>a.name.localeCompare(b.name)).map(l=>{const n=S.parts.filter(p=>p.loc===l.id).length;
+    return `<button class="item" data-act="loc" data-id="${h(l.id)}" style="padding-left:${12+dep*22}px"><div class="thumb">${I.places}</div><span class="body"><span class="t">${h(l.name)}</span><span class="s">${h(t("t_"+l.type))} · <span class="mono">${h(l.id)}</span>${l.lat!=null?" · GPS":""}</span></span><span class="chip st-installed">${n}</span></button>`+tree(l.id,dep+1)}).join("");
+  return{title:t("places"),html:`<div class="btns"><button class="btn primary" data-act="push" data-v="locForm">${I.plus} ${h(t("addLoc"))}</button><button class="btn outline" data-act="locLabels">${I.qr} ${h(t("locLabels"))}</button></div>
+  <div class="list">${tree(null,0)||`<div class="empty">—</div>`}</div>`};
+}
+function qrSvg(text,cell){try{const q=qrcode(0,"M");q.addData(text);q.make();return q.createSvgTag({cellSize:cell||4,margin:2,scalable:true})}catch(e){return `<div class="mono">${h(text)}</div>`}}
+function vLoc(id){
+  const l=LO(id);if(!l)return{html:"—"};const here=S.parts.filter(p=>p.loc===id),subs=S.locations.filter(x=>x.parent===id);
+  return{title:l.name,html:`<section class="card" style="text-align:center"><div class="qrbox">${qrSvg(l.id,5)}</div><div class="idbig" style="margin-top:8px">${h(l.id)}</div><div class="muted">${h(locPath(l.id))}</div></section>
+  <section class="card"><dl class="kv"><dt>${h(t("type"))}</dt><dd>${h(t("t_"+l.type))}</dd><dt>${h(t("site"))}</dt><dd>${h(l.site||"")}</dd>
+  <dt>GPS</dt><dd>${l.lat!=null?`${l.lat.toFixed(5)}, ${l.lng.toFixed(5)} · ${h(t("radius"))}: ${l.radius} m<br><a href="https://www.google.com/maps?q=${l.lat},${l.lng}" target="_blank" rel="noopener">${h(t("openMap"))}</a>`:h(t("noPoint"))+(locArea(id)?` · ${h(locArea(id).name)}`:"")}</dd></dl></section>
+  <div class="btns"><button class="btn outline" data-act="setPoint" data-id="${h(l.id)}">${I.places} ${h(t("setPoint"))}</button><button class="btn outline" data-act="push" data-v="locForm" data-id="${h(l.id)}">${h(t("edit"))}</button></div>
+  ${subs.length?`<section><h2>${h(t("places"))}</h2><div class="list">${subs.map(s=>`<button class="item" data-act="loc" data-id="${h(s.id)}"><div class="thumb">${I.places}</div><span class="body"><span class="t">${h(s.name)}</span><span class="s mono">${h(s.id)}</span></span></button>`).join("")}</div></section>`:""}
+  <section><h2>${h(t("partsHere"))} (${here.length})</h2><div class="list">${here.map(p=>partRow(p,false)).join("")||`<div class="empty">—</div>`}</div></section>`};
+}
+function vLocForm(id){
+  const l=id?LO(id):{type:"Store",site:set.site,radius:50,parent:null};
+  const opts=S.locations.filter(x=>x.id!==id).map(x=>`<option value="${h(x.id)}" ${l.parent===x.id?"selected":""}>${h(locPath(x.id))}</option>`).join("");
+  return{title:id?t("edit"):t("addLoc"),html:`<form class="form" id="lf">
+  <label class="f">${h(t("locName"))} *<input type="text" id="l_name" value="${h(l.name||"")}" placeholder="${ph("locName")}"></label>
+  <div class="grid2"><label class="f">${h(t("type"))}<select id="l_type">${LTYPES.map(x=>`<option value="${x}" ${l.type===x?"selected":""}>${h(t("t_"+x))}</option>`).join("")}</select></label>
+  <label class="f">${h(t("radius"))}<input type="number" id="l_rad" min="5" value="${l.radius||50}"></label></div>
+  <label class="f">${h(t("parentLoc"))}<select id="l_par"><option value="">${h(t("none"))}</option>${opts}</select></label>
+  <label class="f">${h(t("site"))}<input type="text" id="l_site" value="${h(l.site||"")}"></label>
+  <div class="btns"><button type="button" class="btn" data-act="pop">${h(t("cancel"))}</button><button class="btn primary" type="submit">${h(t("save"))}</button></div></form>`,
+  after(){$("#lf").addEventListener("submit",e=>{e.preventDefault();const name=$("#l_name").value.trim();if(!name)return toast(t("required",{f:t("locName")}));
+    const o=id?l:{id:"LOC-"+set.dev+String(set.locSeq++).padStart(4,"0"),created:Date.now(),lat:null,lng:null};if(!id)saveSet();
+    Object.assign(o,{name,type:$("#l_type").value,radius:Math.max(5,+$("#l_rad").value||50),parent:$("#l_par").value||null,site:$("#l_site").value.trim()});putLoc(o);toast(t("saved"));
+    V.stack.pop();if(!id)V.stack.push({view:"loc",param:o.id});render()})}};
+}
+
+/* ---------- labels ---------- */
+function vLabels(kind){
+  const list=madeLabels||[];
+  return{title:t("labels"),html:`<div class="noprint form"><p class="muted" style="margin:0">${h(t("labelsHelp"))}</p>
+  <div class="inline"><input type="number" id="lcount" min="1" max="200" value="12" aria-label="${h(t("count"))}"><button class="btn primary" data-act="genLabels">${h(t("generate"))}</button></div>
+  ${list.length?`<div class="btns"><span class="muted small" style="flex:1;align-self:center">${h(list.length>1?t("labelsMade",{a:list[0].id,b:list[list.length-1].id}):list[0].id)}</span><button class="btn" data-act="print">${h(t("print"))}</button></div>`:""}</div>
+  <div class="labels">${list.map(x=>`<div class="label">${qrSvg(x.id,4)}<span class="mono">${h(x.id)}</span>${x.sub?`<small>${h(x.sub)}</small>`:""}</div>`).join("")}</div>`};
+}
+
+/* ---------- more ---------- */
+function vMore(){
+  return{title:t("more"),html:`
+  <section><h2>${h(t("labels"))}</h2><button class="bigact" data-act="push" data-v="labels"><span class="ic">${I.qr}</span><span><strong>${h(t("actLabels"))}</strong><small>${h(t("labelsHelp"))}</small></span></button></section>
+  <section><h2>${h(t("settings"))}</h2><div class="card form">
+    <label class="f">${h(t("userName"))}<input type="text" id="s_user" value="${h(set.user)}"></label>
+    <div class="grid2"><label class="f">${h(t("site"))}<input type="text" id="s_site" value="${h(set.site)}"></label>
+    <label class="f">${h(t("devCode"))}<input type="text" id="s_dev" maxlength="2" value="${h(set.dev)}"></label>
+    <label class="f">${h(t("notSeenDays"))}<input type="number" id="s_ns" min="1" value="${set.notSeen}"></label>
+    <label class="f">${h(t("repairDays"))}<input type="number" id="s_rd" min="1" value="${set.repairDays}"></label></div>
+  </div></section>
+  <section><h2>${h(t("data"))}</h2><div class="card form"><p class="small muted" style="margin:0">${h(t("offlineNote"))}</p>
+    <button class="btn outline block" data-act="export">${h(t("export"))}</button>
+    <button class="btn outline block" data-act="demo">${h(t("resetDemo"))}</button>
+    <button class="btn danger block" data-act="clear">${h(clearArm?t("confirmClear"):t("clearAll"))}</button>
+    <p class="small muted" style="margin:0">${h(t("installNote"))}</p></div></section>`,
+  after(){[["s_user","user"],["s_site","site"],["s_dev","dev"],["s_ns","notSeen"],["s_rd","repairDays"]].forEach(([id,k])=>$("#"+id).addEventListener("change",e=>{let v=e.target.value.trim();
+    if(k==="dev")v=(v.toUpperCase().replace(/[^A-Z0-9]/g,"")||"A");if(k==="notSeen"||k==="repairDays")v=Math.max(1,+v||1);set[k]=v;saveSet();render()}))}};
+}
+
+/* ---------- scanner ---------- */
+let scanStream=null,scanRAF=null;
+function stopScan(){if(scanRAF)cancelAnimationFrame(scanRAF);scanRAF=null;if(scanStream)scanStream.getTracks().forEach(x=>x.stop());scanStream=null;const m=$(".modal");m&&m.remove()}
+function scan(kind){ // kind: part|loc
+  return new Promise(resolve=>{
+    stopScan();
+    const unused=[];for(let i=0;i<8;i++){const id="AST-"+set.dev+String(set.labelSeq+i).padStart(5,"0");if(!P(id)&&!(wz&&(wz.id===id||wz.children.some(c=>c.id===id))))unused.push(id)}
+    const opts=kind==="loc"?`<optgroup label="${h(t("places"))}">${S.locations.map(l=>`<option value="${h(l.id)}">${h(locPath(l.id))} (${h(l.id)})</option>`).join("")}</optgroup>`
+      :`<optgroup label="${h(t("newParts"))}">${unused.map(i=>`<option>${i}</option>`).join("")}</optgroup><optgroup label="${h(t("existing"))}">${S.parts.map(p=>`<option value="${h(p.id)}">${h(p.name)} (${h(p.id)})</option>`).join("")}</optgroup>`;
+    const m=document.createElement("div");m.className="modal";m.setAttribute("role","dialog");m.setAttribute("aria-modal","true");
+    m.innerHTML=`<div class="sheet"><h3>${h(kind==="loc"?t("scanLoc"):t("scanTitle"))}</h3>
+      <div class="viewfinder"><video playsinline muted></video><div class="msg" id="scMsg">${h(t("scanTitle"))}</div></div>
+      <label class="btn outline block">${I.cam} ${h(t("photoQr"))}<input type="file" id="scPhoto" accept="image/*" capture="environment" hidden></label>
+      <form class="inline" id="scForm"><input type="text" id="scCode" placeholder="${h(t("typeCode"))}" aria-label="${h(t("typeCode"))}" autocapitalize="characters"><button class="btn primary" type="submit">${h(t("go"))}</button></form>
+      <label class="f">${h(t("pick"))}<select id="scPick"><option value="">${h(t("choose"))}</option>${opts}</select></label>
+      <button class="btn block" id="scCancel">${h(t("cancel"))}</button></div>`;
+    document.body.appendChild(m);
+    const finish=code=>{code=(code||"").trim().toUpperCase();if(!code)return;if(navigator.vibrate)try{navigator.vibrate(60)}catch(e){};stopScan();resolve(code)};
+    m.querySelector("#scCancel").onclick=()=>{stopScan();resolve(null)};
+    m.addEventListener("click",e=>{if(e.target===m){stopScan();resolve(null)}});
+    m.querySelector("#scForm").onsubmit=e=>{e.preventDefault();finish(m.querySelector("#scCode").value)};
+    m.querySelector("#scPick").onchange=e=>finish(e.target.value);
+    m.querySelector("#scPhoto").onchange=async e=>{const f=e.target.files[0];if(!f)return;const c=await decodeFile(f);if(c)finish(c);else toast(t("noQr"))};
+    const video=m.querySelector("video"),msg=m.querySelector("#scMsg");
+    const noCam=()=>{msg.textContent=t("camNo")};
+    if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia)return noCam();
+    navigator.mediaDevices.getUserMedia({video:{facingMode:"environment"},audio:false}).then(st=>{
+      if(!document.body.contains(m)){st.getTracks().forEach(x=>x.stop());return}
+      scanStream=st;video.srcObject=st;video.play().catch(()=>{});msg.textContent="";
+      const det=("BarcodeDetector" in window)?new BarcodeDetector({formats:["qr_code"]}):null;
+      const cv=document.createElement("canvas"),cx=cv.getContext("2d",{willReadFrequently:true});let busy=false;
+      const loop=async()=>{if(!scanStream)return;if(!busy&&video.readyState>=2){busy=true;try{
+        if(det){const r=await det.detect(video);if(r[0])return finish(r[0].rawValue)}
+        else if(window.jsQR){const w=Math.min(640,video.videoWidth),hh=Math.round(video.videoHeight*w/video.videoWidth);cv.width=w;cv.height=hh;cx.drawImage(video,0,0,w,hh);const d=cx.getImageData(0,0,w,hh);const r=jsQR(d.data,w,hh,{inversionAttempts:"dontInvert"});if(r&&r.data)return finish(r.data)}
+      }catch(e){}busy=false}scanRAF=requestAnimationFrame(loop)};loop();
+    }).catch(noCam);
+  });
+}
+function decodeFile(f){return new Promise(res=>{const img=new Image(),u=URL.createObjectURL(f);img.onload=async()=>{const s=Math.min(1,1200/Math.max(img.width,img.height)),c=document.createElement("canvas");c.width=img.width*s|0;c.height=img.height*s|0;const x=c.getContext("2d");x.drawImage(img,0,0,c.width,c.height);URL.revokeObjectURL(u);
+  try{if("BarcodeDetector" in window){const r=await new BarcodeDetector({formats:["qr_code"]}).detect(c);if(r[0])return res(r[0].rawValue)}}catch(e){}
+  if(window.jsQR){const d=x.getImageData(0,0,c.width,c.height);const r=jsQR(d.data,c.width,c.height);if(r&&r.data)return res(r.data)}res(null)};img.onerror=()=>res(null);img.src=u})}
+const isLocCode=c=>/^LOC-/.test(c);
+
+/* ---------- actions ---------- */
+const A={
+  tab:d=>go(d.v), pop:()=>pop(), push:d=>push(d.v,d.id),
+  lang:d=>{set.lang=d.v;saveSet();render()},
+  part:d=>push("part",d.id), loc:d=>push("loc",d.id),
+  filt:d=>{filt.st=d.v;render()},
+  startReg:()=>startReg(),
+  async wzScanLabel(){const c=await scan("part");if(!c)return;if(isLocCode(c))return toast(t("isLoc"));if(idTaken(c))return toast(t("idUsed",{id:c,n:(P(c)||{}).name||""}));bumpSeq(c);wz.id=c;wz.step=2;render()},
+  wzAuto(){wz.id=claimAuto();wz.step=2;render()},
+  wzBack(){if(wz.step===4&&!wz.main)wz.step=2;else wz.step=Math.max(1,wz.step-1);render()},
+  async wzScanChild(){const c=await scan("part");if(!c)return;if(isLocCode(c))return toast(t("isLoc"));if(idTaken(c))return toast(t("idUsed",{id:c,n:(P(c)||{name:wz.name}).name}));bumpSeq(c);wz.children.push({id:c,name:""});render();const ins=document.querySelectorAll("[data-cn]");ins[ins.length-1]&&ins[ins.length-1].focus()},
+  wzAutoChild(){wz.children.push({id:claimAuto(),name:""});render();const ins=document.querySelectorAll("[data-cn]");ins[ins.length-1].focus()},
+  wzDelChild:d=>{wz.children.splice(+d.i,1);render()},
+  wzToLoc(){const miss=wz.children.findIndex(c=>!c.name.trim());if(miss>=0){toast(t("required",{f:t("compName")}));document.querySelectorAll("[data-cn]")[miss].focus();return}wz.step=4;if(wz.gpsState==="idle")autoGps(wz);else render()},
+  async wzScanLoc(){const c=await scan("loc");if(!c)return;if(!isLocCode(c))return toast(t("notLoc"));if(!LO(c))return toast(t("unknownLoc",{id:c}));wz.loc=c;render()},
+  wzToReview(){wz.step=5;render()},
+  wzSave(){const now=Date.now(),res=evalLoc(null,wz.loc,wz.gps);
+    const mk=(o,parent)=>{const p={id:o.id,name:o.name.trim(),group:o.group||wz.group||"",cls:o.cls||"",mfr:o.mfr||"",model:o.model||"",serial:o.serial||"",critical:!!o.critical,photo:o.photo||null,parent,status:wz.status,statusTs:now,loc:wz.loc,lastSeen:now,gps:wz.gps,created:now};putPart(p);
+      addEv({type:"REGISTER",part:p.id,loc:wz.loc,gps:wz.gps,gpsOut:res.gpsOut,status:p.status});if(parent)addEv({type:"LINK",part:p.id,parent,loc:wz.loc})};
+    mk(wz,null);wz.children.forEach(c=>mk(c,wz.id));const n=1+wz.children.length,id=wz.id;wz=null;toast(t("registered",{n}));V={tab:"parts",stack:[{view:"part",param:id}]};render()},
+  gpsRetry(){const o=cur().view==="register"?wz:ck;autoGps(o)},
+  async ckScanPart(){const c=await scan("part");if(!c)return;if(isLocCode(c))return toast(t("isLoc"));if(!P(c)){ck={step:1,unknown:c};return render()}ck={part:c,seen:{}};autoGps(ck)},
+  checkPart:d=>{ck={part:d.id,seen:{}};V={tab:"check",stack:[]};autoGps(ck)},
+  regUnknown(){const id=ck.unknown;ck={step:1};bumpSeq(id);startReg(id)},
+  async ckScanLoc(){keepForm();const c=await scan("loc");if(!c)return;if(!isLocCode(c))return toast(t("notLoc"));if(!LO(c))return toast(t("unknownLoc",{id:c}));ck.loc=c;render()},
+  ckReset(){ck={step:1};render()},
+  ckSave:()=>saveCheck(),
+  async addComp(d){const parent=P(d.id);const c=await scan("part");if(!c)return;if(isLocCode(c))return toast(t("isLoc"));if(c===parent.id)return;
+    const ex=P(c);if(ex){if(ex.parent)addEv({type:"UNLINK",part:ex.id,parent:ex.parent,loc:ex.loc});ex.parent=parent.id;putPart(ex);addEv({type:"LINK",part:ex.id,parent:parent.id,loc:ex.loc});toast(t("saved"));render()}
+    else{bumpSeq(c);startReg(c);wz.parentFor=parent.id;wz.loc=parent.loc;wz.name="";wz.group=parent.group}},
+  unlink(d){const p=P(d.id);addEv({type:"UNLINK",part:p.id,parent:p.parent,loc:p.loc});p.parent=null;putPart(p);toast(t("saved"));render()},
+  async setPoint(d){const l=LO(d.id);toast(t("gpsGetting"));const g=await getGps();if(!g)return toast(t("gpsNone"));l.lat=g.lat;l.lng=g.lng;putLoc(l);toast(t("pointSet")+" ±"+Math.round(g.acc)+" m");render()},
+  genLabels(){const n=Math.min(200,Math.max(1,+$("#lcount").value||12));madeLabels=[];for(let i=0;i<n;i++){let id;do{id=claimAuto()}while(P(id));madeLabels.push({id,sub:set.site})}render()},
+  locLabels(){madeLabels=S.locations.map(l=>({id:l.id,sub:locPath(l.id)}));push("labels")},
+  print(){try{window.print()}catch(e){}},
+  export(){if(!window.XLSX)return toast("Excel library not loaded yet");const wb=XLSX.utils.book_new();
+    const parts=S.parts.map(p=>({ID:p.id,Name:p.name,Parent:p.parent||"",Series:rootOf(p).id,Status:t("s_"+p.status),Location_ID:p.loc||"",Location:locPath(p.loc),Group:p.group,Class:p.cls,Manufacturer:p.mfr,Model:p.model,Serial:p.serial,Critical:p.critical?"Y":"",Last_seen:p.lastSeen?new Date(p.lastSeen).toISOString():"",GPS_lat:p.gps?p.gps.lat:"",GPS_lng:p.gps?p.gps.lng:"",GPS_acc_m:p.gps?Math.round(p.gps.acc):""}));
+    const locs=S.locations.map(l=>({ID:l.id,Name:l.name,Type:l.type,Parent:l.parent||"",Path:locPath(l.id),Site:l.site,Lat:l.lat??"",Lng:l.lng??"",Radius_m:l.radius}));
+    const evs=[...S.events].sort((a,b)=>a.ts-b.ts).map(e=>({Time:new Date(e.ts).toISOString(),Type:e.type,Part:e.part,Part_name:(P(e.part)||{}).name||"",Location_ID:e.loc||"",From:e.from||"",Parent:e.parent||"",Status:e.status||"",User:e.user,GPS_lat:e.gps?e.gps.lat:"",GPS_lng:e.gps?e.gps.lng:"",GPS_acc_m:e.gps?Math.round(e.gps.acc):"",GPS_outside_m:e.gpsOut||"",WO:e.wo||"",Remark:e.note||""}));
+    XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(parts),"Parts");XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(locs),"Locations");XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(evs),"Events");
+    XLSX.writeFile(wb,"PartTrace_"+new Date().toISOString().slice(0,10)+".xlsx")},
+  demo(){loadDemo();toast(t("demoLoaded"));go("home")},
+  clear(){if(!clearArm){clearArm=1;render();setTimeout(()=>{clearArm=0;if(cur().view==="more")render()},4000);return}clearArm=0;wipe();set.demo=false;saveSet();toast(t("cleared"));go("home")}
+};
+document.addEventListener("click",e=>{const a=e.target.closest("[data-act]");if(!a)return;const f=A[a.dataset.act];if(!f)return;e.preventDefault();f(a.dataset,a)});
+
+/* when registering a new component from a part page, link it on save */
+const _save=A.wzSave;A.wzSave=function(){const pf=wz&&wz.parentFor,id=wz&&wz.id;_save();if(pf&&P(id)){const p=P(id);p.parent=pf;putPart(p);addEv({type:"LINK",part:id,parent:pf,loc:p.loc});V={tab:"parts",stack:[{view:"part",param:pf}]};render()}};
+
+/* ---------- sample data ---------- */
+function wipe(){S={parts:[],locations:[],events:[],photos:{}};["parts","locations","events","photos"].forEach(s=>DB.clear(s));set.labelSeq=1;set.locSeq=1}
+function loadDemo(){
+  wipe();const now=Date.now(),d=n=>now-n*DAY,base={lat:13.0930,lng:100.9130};
+  const off=(dy,dx)=>({lat:base.lat+dy,lng:base.lng+dx});
+  const locs=[
+    ["LOC-A0001","Main Store","Store",null,off(0,0),60],["LOC-A0002","Rack A","Rack","LOC-A0001",null,0],["LOC-A0003","Shelf A-2","Shelf","LOC-A0002",null,0],
+    ["LOC-A0004","Rack B","Rack","LOC-A0001",null,0],["LOC-A0005","Heavy Parts Yard","Yard",null,off(.0016,.0019),80],["LOC-A0006","Maintenance Workshop","Workshop",null,off(-.0009,-.0017),50]];
+  locs.forEach(([id,name,type,parent,g,r])=>putLoc({id,name,type,parent,site:set.site,lat:g?g.lat:null,lng:g?g.lng:null,radius:r||50,created:d(60)}));
+  set.locSeq=7;
+  const gpsAt=(loc,acc,jit)=>{const a=locArea(loc);return a?{lat:a.lat+(jit||0)*1e-5,lng:a.lng+(jit||0)*1e-5,acc,ts:now}:null};
+  const mk=(id,name,o)=>{const p=Object.assign({id,name,group:"",cls:"",mfr:"",model:"",serial:"",critical:false,photo:null,parent:null,status:"in_store",statusTs:d(40),loc:null,lastSeen:d(1),gps:null,created:d(40)},o);
+    p.gps=gpsAt(p.loc,12,3);putPart(p);addEv({type:"REGISTER",part:id,loc:p.loc,gps:p.gps,gpsOut:0,status:p.status,ts:p.created,user:"Somchai K.",synced:true});
+    if(p.parent)addEv({type:"LINK",part:id,parent:p.parent,loc:p.loc,ts:p.created+6e4,user:"Somchai K.",synced:true});return p};
+  mk("AST-A00001","Gearbox assembly – Conveyor CV-03",{group:"Mechanical",cls:"A",mfr:"SEW",model:"KA87",serial:"GB-2219-0457",critical:true,loc:"LOC-A0005",lastSeen:d(2)});
+  mk("AST-A00002","Input shaft",{group:"Mechanical",parent:"AST-A00001",loc:"LOC-A0005",lastSeen:d(2)});
+  const fl=mk("AST-A00003","Output flange",{group:"Mechanical",parent:"AST-A00001",loc:"LOC-A0005",lastSeen:d(2)});
+  mk("AST-A00004","Gear set (pinion + wheel)",{group:"Mechanical",parent:"AST-A00001",loc:"LOC-A0005",lastSeen:d(2)});
+  fl.loc="LOC-A0006";fl.lastSeen=d(1);fl.gps=gpsAt("LOC-A0006",9,2);putPart(fl);addEv({type:"MOVE",part:fl.id,loc:"LOC-A0006",from:"LOC-A0005",gps:fl.gps,gpsOut:0,ts:d(1),user:"Anan P.",note:"Machining"});
+  mk("AST-A00005","Pump set P-101",{group:"Mechanical",cls:"A",mfr:"Grundfos",model:"NK 80-250",serial:"P101-88213",critical:true,status:"repair_out",statusTs:d(21),loc:"LOC-A0006",lastSeen:d(21),created:d(45)});
+  addEv({type:"STATUS",part:"AST-A00005",status:"repair_out",loc:"LOC-A0006",ts:d(21),wo:"WO-26-0912",user:"Anan P.",synced:true});
+  mk("AST-A00006","Mechanical seal kit",{group:"Mechanical",parent:"AST-A00005",loc:"LOC-A0003",lastSeen:d(5),created:d(45)});
+  mk("AST-A00007","Impeller",{group:"Mechanical",parent:"AST-A00005",status:"repair_out",statusTs:d(21),loc:"LOC-A0006",lastSeen:d(21),created:d(45)});
+  mk("AST-A00008","Motor 37 kW – Fan F-02",{group:"Electrical",cls:"B",mfr:"ABB",model:"M3BP 225",serial:"3G-7731-02",loc:"LOC-A0004",lastSeen:d(46),created:d(50)});
+  const hc=mk("AST-A00009","Hydraulic cylinder HC-7",{group:"Hydraulic",cls:"B",loc:"LOC-A0003",lastSeen:d(3)});
+  const out={lat:base.lat+.0031,lng:base.lng-.0024,acc:14,ts:d(3)};const dd=dist(out,locArea("LOC-A0003"));
+  addEv({type:"CHECK",part:hc.id,loc:"LOC-A0003",from:"LOC-A0003",gps:out,gpsOut:dd,ts:d(3),user:"Wichai S."});hc.gps=out;putPart(hc);
+  set.labelSeq=10;set.demo=true;saveSet();
+}
+
+/* ---------- boot ---------- */
+(async function(){
+  await DB.open();
+  const [parts,locations,events,photos,meta]=await Promise.all(["parts","locations","events","photos","meta"].map(s=>DB.all(s)));
+  const st=meta.find(m=>m.id==="settings");
+  if(st)Object.assign(set,st);else{if(/^th\b/i.test(navigator.language||""))set.lang="th";}
+  S.parts=parts;S.locations=locations;S.events=events;photos.forEach(p=>S.photos[p.id]=p.data);
+  if(!st&&!parts.length&&!locations.length)loadDemo();
+  render();
+  if("serviceWorker" in navigator&&/^https?:/.test(location.protocol)&&!/claude|anthropic/.test(location.hostname))navigator.serviceWorker.register("sw.js").catch(()=>{});
+})();
+</script>
+</body>
+</html>
